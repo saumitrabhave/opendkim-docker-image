@@ -11,27 +11,40 @@ MAINTAINER Instrumentisto Team <developer@instrumentisto.com>
 # https://git.alpinelinux.org/cgit/aports/tree/community/opendkim/APKBUILD?h=3b749b4a926cd6db8c9f9f65b71d2f94e3fb08e5
 RUN apk update \
  && apk upgrade \
- && apk add --no-cache \
+ && apk add \
         ca-certificates \
  && update-ca-certificates \
     \
  # Install OpenDKIM dependencies
- && apk add --no-cache \
+ && apk add \
         libressl2.7-libcrypto libressl2.7-libssl \
         libmilter \
         # Perl and LibreSSL required for opendkim-* utilities
         libressl perl \
     \
  # Install tools for building
- && apk add --no-cache --virtual .tool-deps \
+ && apk add --virtual .tool-deps \
         curl coreutils autoconf g++ libtool make \
     \
  # Install OpenDKIM build dependencies
- && apk add --no-cache --virtual .build-deps \
+ && apk add --virtual .build-deps \
         libressl-dev \
         libmilter-dev \
-    \
+# Install OpenDBX build dependencies
+ && apk add --virtual .dbx-deps \
+        mariadb-dev \
+        readline-dev \
+        ncurses-dev \
+        db-dev \
  # Download and prepare OpenDKIM sources
+ && curl -fL -o /tmp/opendbx.tar.gz \
+         http://linuxnetworks.de/opendbx/download/opendbx-1.4.6.tar.gz   \
+ && (echo "2246a03812c7d90f10194ad01c2213a7646e383000a800277c6fb8d2bf81497c  /tmp/opendbx.tar.gz" \
+         | sha256sum -c -) \
+ && tar -xzf /tmp/opendbx.tar.gz -C /tmp/ \
+ && cd /tmp/opendbx-* \
+ && CPPFLAGS="-I/usr/include/mysql" ./configure --with-backends="mysql" \
+ && make install \
  && curl -fL -o /tmp/opendkim.tar.gz \
          https://downloads.sourceforge.net/project/opendkim/opendkim-2.10.3.tar.gz \
  && (echo "97923e533d072c07ae4d16a46cbed95ee799aa50f19468d8bc6d1dc534025a8616c3b4b68b5842bc899b509349a2c9a67312d574a726b048c0ea46dd4fcc45d8  /tmp/opendkim.tar.gz" \
@@ -43,6 +56,9 @@ RUN apk update \
  && ./configure \
         --prefix=/usr \
         --sysconfdir=/etc/opendkim \
+        --with-odbx \
+        --with-sql-backend \
+        --enable-query_cache \
         # No documentation included to keep image size smaller
         --docdir=/tmp/opendkim/doc \
         --htmldir=/tmp/opendkim/html \
